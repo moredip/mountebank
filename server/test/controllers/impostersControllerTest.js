@@ -4,7 +4,8 @@ var assert = require('assert'),
     mock = require('../mock').mock,
     mockery = require('mockery'),
     Controller = require('../../src/controllers/impostersController'),
-    FakeResponse = require('../fakes/fakeResponse');
+    FakeResponse = require('../fakes/fakeResponse'),
+    Q = require('q');
 
 describe('ImpostersController', function () {
     var response;
@@ -30,6 +31,56 @@ describe('ImpostersController', function () {
             controller.get({}, response);
 
             assert.deepEqual(response.body, {imposters: ["firstHypermedia", "secondHypermedia"]});
+        });
+    });
+
+    describe('#post without fake Q', function(){
+        var request, Imposter, imposter, ports;
+
+        beforeEach(function () {
+            request = { body: {} };
+            imposter = {
+                url: function(){ return "imposter-url"; },
+                hypermedia: function(){ return ""; }
+            };
+            Imposter = {
+                create: function(){ return Q(imposter); }
+            };
+            ports = {
+                isValidPortNumber: function(){ return true; },
+                isPortInUse: function(){ return Q(false); }
+            };
+
+            mockery.enable({
+                useCleanCache: true,
+                warnOnReplace: false,
+                warnOnUnregistered: false
+            });
+            mockery.registerMock('../models/imposter', Imposter);
+            mockery.registerMock('../util/ports', ports);
+            Controller = require('../../src/controllers/impostersController');
+        });
+
+        afterEach(function () {
+            mockery.disable();
+        });
+      
+        it('should return a 400 when the port is in use (without FakeQ)', function (done) {
+            var controller = Controller.create([{ name: 'http' }], {});
+            request.body = { protocol: 'http', port: 'invalid' };
+            
+            ports.isPortInUse = function(){ return Q(true); };
+
+            controller.post(request, response).done( function(){
+              assert.strictEqual(response.statusCode, 400);
+              assert.deepEqual(response.body, {
+                  errors: [{
+                      code: "port conflict",
+                      message: "port already in use"
+                  }]
+              });
+              done();
+            });
         });
     });
 
@@ -140,6 +191,7 @@ describe('ImpostersController', function () {
                 }]
             });
         });
+
 
         it('should not check port availability if missing port', function () {
             var controller = Controller.create([{ name: 'http' }], {});

@@ -58,6 +58,7 @@ function create (protocols, imposters) {
         }
 
         ports.isPortInUse(port).then(function (portConflict) {
+          debugger
             if (portConflict) {
                 errors.push({
                     code: "port conflict",
@@ -83,9 +84,8 @@ function create (protocols, imposters) {
         var protocol = request.body.protocol,
             port = request.body.port;
 
-        validate(protocol, port).then(function () {
-            return Imposter.create(protocolFor(protocol), port);
-        }).then(function (imposter) {
+        return validate(protocol, port).then(function() {
+            imposter = Imposter.create(protocolFor(protocol), port);
             imposters[port] = imposter;
             response.setHeader('Location', imposter.url(response));
             response.statusCode = 201;
