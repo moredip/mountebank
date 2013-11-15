@@ -85,7 +85,8 @@ function create (protocols, imposters) {
             port = request.body.port;
 
         return validate(protocol, port).then(function() {
-            imposter = Imposter.create(protocolFor(protocol), port);
+            return Imposter.create(protocolFor(protocol), port);
+        }).then(function(imposter){
             imposters[port] = imposter;
             response.setHeader('Location', imposter.url(response));
             response.statusCode = 201;
